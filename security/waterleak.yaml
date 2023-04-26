@@ -1,0 +1,65 @@
+blueprint:  
+  name: "Water Leak"
+  description: "Automatically close valve(s) if water leak detected."
+  domain: automation
+  source_url: https://github.com/Domotek-CA/blueprints/blob/main/security/waterleak.yaml
+  input:
+    valve:
+      name: "Valve"
+      selector:
+        target:
+          entity:
+            domain: switch
+            
+    sensors:
+      name: "Sensors"
+      selector:
+        entity:
+          domain: bin
+          device_class: moisture
+          multiple: true
+          
+trigger:
+  - platform: state
+    entity_id: !input "sensors"
+    
+condition: "{{ trigger.from_state.state != trigger.to_state.state }}"
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == 'on'}}"
+        sequence:          
+          - service: notify.mobile_app_pierre_olivier
+            data:
+              message: "Capteur: {{ trigger.to_state.name }}"
+              title: "Fuite d'eau détectée, fermeture de la valve"
+              data:
+                push:
+                  sound:
+                    name: default
+                    critical: 1
+                    volume: 1
+          - service: switch.turn_off
+            target: !input "valve" 
+          - service: notify.mobile_app_pierre_olivier
+            data:
+              message: "Capteur: {{ trigger.to_state.name }}"
+              title: "Valve fermée"
+              data:
+                push:
+                  sound:
+                    name: default  
+                    critical: 1      
+                    volume: 1     
+      - conditions:
+        - condition: template
+          value_template: "{{ trigger.to_state.state == 'off'}}" 
+        sequence:
+        - service: notify.mobile_app_pierre_olivier
+          data:
+            message: "Capteur: {{ trigger.to_state.name }}"  
+            title: "Fuite d'eau terminée"    
+  
+    default: []
