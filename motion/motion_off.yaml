@@ -1,0 +1,71 @@
+blueprint:
+  name: "MOTION_OFF"
+  description: ""
+  domain: "automation"
+  source_url: https://github.com/Domotek-CA/blueprints/blob/main/motion/simple_on.yaml
+  input:
+    lights:
+      name: "Lights"
+      default: 
+        entity_id: null
+      selector:
+        target:
+          entity:
+            domain: light
+
+    switches:
+      name: "Switches"
+      default: 
+        entity_id: null
+      selector:
+        target:
+          entity:
+            domain: switch
+
+    sensors:
+      name: "Motion Sensors"
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+          multiple: true
+
+    timer_entity:
+      name: "Timer Entity"
+      selector:
+        entity:
+          domain: timer
+          multiple: false
+
+    timer_length:
+      name: "Timer Length"
+      description: "Length of time to keep the lights on"
+      default: "240"
+      selector:
+        number:
+          min: 0
+          max: 1800
+          step: 1
+          unit_of_measurement: seconds
+
+trigger:
+  - platform: state
+    entity_id: !input "timer_entity"
+    to: "idle"
+
+action:
+  - if:
+    - condition: template
+      value_template: >
+        {{ states.binary_sensor | selectattr('entity_id', 'in', inputs.sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+    then:
+      - service: timer.start
+        data:
+          duration: !input "timer_length"
+        target:
+          entity_id: !input "timer_entity"
+    else:
+      - service: light.turn_off
+        target: !input "lights"
+      - service: switch.turn_off
+        target: !input "switches"
